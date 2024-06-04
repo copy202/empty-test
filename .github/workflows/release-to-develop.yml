@@ -18,24 +18,31 @@ jobs:
           git config --global user.email "fenggwyq@gmail.com"
           git config --global user.name "fenggwyq"
 
+      - name: Delete existing release_to_develop branch if exists
+        run: |
+          branch_name=$(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
+          if git show-ref --verify --quiet refs/heads/$branch_name; then
+            git push origin --delete $branch_name
+          fi
+
       - name: Create release_to_develop branch
         run: |
           git checkout -b $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
           git push -u origin $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
 
-      - name: Rebase release_to_develop onto develop
-        id: rebase
-        run: |
-          git checkout $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
-          git fetch origin
-          git rebase origin/main
+      # - name: Rebase release_to_develop onto develop
+      #   id: rebase
+      #   run: |
+      #     git checkout $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
+      #     git fetch origin
+      #     git rebase origin/main
 
-      - name: Push rebase changes to develop
-        if: steps.rebase.outcome == 'success'
+      - name: Push changes to develop
         run: |
+          git fetch origin
           git checkout main
           git pull origin main
-          git merge $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
+          git merge $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop --allow-unrelated-histories
           git push origin main
 
       # - name: Send Slack notification
@@ -50,7 +57,3 @@ jobs:
       #     fields: |
       #       - Field 1: Value 1
       #       - Field 2: Value 2
-
-      - name: Delete release_to_develop branch
-        run: |
-          git push -d origin $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
