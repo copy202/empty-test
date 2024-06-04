@@ -15,6 +15,11 @@ jobs:
         with:
           ref: ${{ github.ref }}
 
+      - name: Set up Git user
+        run: |
+          git config --global user.email "fenggwyq@gmail.com"
+          git config --global user.name "fenggwyq"
+
       - name: Create release_to_develop branch
         run: |
           git checkout -b $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
@@ -27,7 +32,7 @@ jobs:
           git checkout main
           git pull origin main
           git merge $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop --allow-unrelated-histories
-          git push
+          git push origin main
         continue-on-error: false
 
       # - name: Send Slack notification
