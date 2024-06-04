@@ -1,0 +1,47 @@
+name: Release to Develop
+
+on:
+  push:
+    branches:
+      - release_*
+
+jobs:
+  release_to_develop:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Create release_to_develop branch
+        run: |
+          git checkout -b release_to_develop_$(echo ${GITHUB_REF} | cut -d'/' -f3)
+          git push -u origin release_to_develop_$(echo ${GITHUB_REF} | cut -d'/' -f3)
+
+      - name: Merge release_to_develop to develop
+        id: merge
+        run: |
+          git checkout main
+          git pull origin main
+          git merge release_to_develop_$(echo ${GITHUB_REF} | cut -d'/' -f3)
+        continue-on-error: true
+
+      # - name: Send Slack notification
+      #   if: always()
+      #   uses: rtCamp/action-slack-notify@v2
+      #   env:
+      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      #   with:
+      #     text: |
+      #       ${{ github.event.repository.name }}: Release branch ${{ github.ref }} has been merged to develop branch.
+      #     color: ${{ steps.merge.outcome == 'success' ? 'good' : 'danger' }}
+      #     fields: |
+      #       - Field 1: Value 1
+      #       - Field 2: Value 2
+
+      - name: Delete release_to_develop branch
+        if: steps.merge.outcome == 'success'
+        run: |
+          git push -d origin release_to_develop_$(echo ${GITHUB_REF} | cut -d'/' -f3)
