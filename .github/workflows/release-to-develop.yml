@@ -52,6 +52,5 @@ jobs:
       #       - Field 2: Value 2
 
       - name: Delete release_to_develop branch
-        if: steps.merge.outcome == 'success'
         run: |
           git push -d origin $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
