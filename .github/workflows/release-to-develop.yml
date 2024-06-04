@@ -12,8 +12,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
 
       - name: Set up Git user
         run: |
@@ -25,16 +23,20 @@ jobs:
           git checkout -b $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
           git push -u origin $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
 
-      - name: Merge release_to_develop to develop
-        id: merge
+      - name: Rebase release_to_develop onto develop
+        id: rebase
         run: |
-          git fetch --all
-          git pull --all
-          git rebase main
+          git checkout $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
+          git fetch origin
+          git rebase origin/main
+
+      - name: Push rebase changes to develop
+        if: steps.rebase.outcome == 'success'
+        run: |
           git checkout main
-          git merge $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop --allow-unrelated-histories
-          git push
-        continue-on-error: false
+          git pull origin main
+          git merge $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
+          git push origin main
 
       # - name: Send Slack notification
       #   if: always()
