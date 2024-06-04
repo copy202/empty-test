@@ -17,15 +17,15 @@ jobs:
 
       - name: Create release_to_develop branch
         run: |
-          git checkout -b release_to_develop_$(echo ${GITHUB_REF} | cut -d'/' -f3)
-          git push -u origin release_to_develop_$(echo ${GITHUB_REF} | cut -d'/' -f3)
+          git checkout -b $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
+          git push -u origin $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
 
       - name: Merge release_to_develop to develop
         id: merge
         run: |
           git checkout main
           git pull origin main
-          git merge release_to_develop_$(echo ${GITHUB_REF} | cut -d'/' -f3)
+          git merge $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
         continue-on-error: true
 
       # - name: Send Slack notification
@@ -44,4 +44,4 @@ jobs:
       - name: Delete release_to_develop branch
         if: steps.merge.outcome == 'success'
         run: |
-          git push -d origin release_to_develop_$(echo ${GITHUB_REF} | cut -d'/' -f3)
+          git push -d origin $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
