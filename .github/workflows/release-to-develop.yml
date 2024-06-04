@@ -27,6 +27,7 @@ jobs:
           git checkout main
           git pull origin main
           git merge $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop --allow-unrelated-histories
+          git push
         continue-on-error: false
 
       # - name: Send Slack notification
