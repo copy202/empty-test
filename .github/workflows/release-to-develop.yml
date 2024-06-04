@@ -13,7 +13,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
         with:
-          ref: ${{ github.ref }}
+          fetch-depth: 0
 
       - name: Set up Git user
         run: |
@@ -28,11 +28,10 @@ jobs:
       - name: Merge release_to_develop to develop
         id: merge
         run: |
-          git fetch
+          git rebase main
           git checkout main
-          git pull origin main
           git merge $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop --allow-unrelated-histories
-          git push origin main
+          git push
         continue-on-error: false
 
       # - name: Send Slack notification
