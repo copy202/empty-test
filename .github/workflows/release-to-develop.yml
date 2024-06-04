@@ -28,7 +28,7 @@ jobs:
       - name: Merge release_to_develop to develop
         id: merge
         run: |
-          git fetch
+          git fetch --all
           git pull --all
           git rebase main
           git checkout main
