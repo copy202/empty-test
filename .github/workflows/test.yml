@@ -20,7 +20,7 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: release_0.0.16_to_develop
+          branch: test-001
           base: main
           title: 'Merge release_0.0.16_to_develop to main'
           body: 'This is an automated pull request created by GitHub Actions.'
