@@ -1,110 +1,65 @@
-name: Release to Develop
+name: Auto Merge Release to Main
 
 on:
   push:
     branches:
       - release_*
+    types: [closed]
 
 jobs:
-  release_to_develop:
+  create-and-merge-branch:
     runs-on: ubuntu-latest
-
+    if: github.event.pull_request.merged == true
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Set up Git user
+      - name: Set up Git
         run: |
-          git config --global user.email "fenggwyq@gmail.com"
-          git config --global user.name "fenggwyq"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Delete existing release_to_develop branch if exists
+      - name: Extract branch names
+        id: extract-names
         run: |
-          branch_name=$(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
-          if git show-ref --verify --quiet refs/heads/$branch_name; then
-            git push origin --delete $branch_name
+          echo "::set-output name=release_branch::$(echo '${{ github.ref }}' | sed 's/refs\/heads\///')"
+          echo "::set-output name=hr_branch::$(echo '${{ github.event.pull_request.head.ref }}')"
+
+      - name: Create new branch
+        id: create-branch
+        run: |
+          new_branch="${{ steps.extract-names.outputs.release_branch }}_to_develop"
+          git fetch origin ${{ steps.extract-names.outputs.release_branch }}
+          git checkout -B $new_branch origin/${{ steps.extract-names.outputs.release_branch }}
+          git push --force origin $new_branch
+
+      - name: Check for changes from new branch to main
+        id: check-diff
+        run: |
+          git fetch origin main
+          if git diff --quiet origin/main..${{ steps.create-branch.outputs.new_branch }}; then
+            echo "::set-output name=has_changes::false"
+          else
+            echo "::set-output name=has_changes::true"
           fi
 
-      - name: Create release_to_develop branch
-        run: |
-          git checkout -b $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
-          git push -u origin $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
-
       - name: Create Pull Request
-        id: create_pr
-        uses: actions/github-script@v6
+        if: steps.check-diff.outputs.has_changes == 'true'
+        id: create-pr
+        uses: peter-evans/create-pull-request@v4
         with:
-          script: |
-            const sourceBranch = '$(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop';
-            const targetBranch = 'main';
-            const prTitle = 'PR from $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop to main';
-            const prBody = 'This is an automated PR created by GitHub Actions';
-            const assignee = 'copy202'; // GitHub 用户名
+          token: ${{ secrets.GITHUB_TOKEN }}
+          head: ${{ steps.create-branch.outputs.new_branch }}
+          base: main
+          title: 'Merge ${{ steps.create-branch.outputs.new_branch }} to main'
+          body: 'This is an automated pull request created by GitHub Actions.'
+          assignees: copy202
 
-            // 创建 PR
-            const { data: pullRequest } = await github.pulls.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              head: sourceBranch,
-              base: targetBranch,
-              title: prTitle,
-              body: prBody
-            });
+      - name: Check for merge conflicts
+        if: steps.check-diff.outputs.has_changes == 'true'
+        run: |
+          pr_number=$(jq --raw-output '.number' < $GITHUB_WORKSPACE/pull-request.json)
+          conflict_status=$(gh pr view $pr_number --json mergeStateStatus --jq '.mergeStateStatus')
+          echo "::set-output name=conflict_status::$conflict_status"
 
-            console.log(`Created PR #${pullRequest.number}`);
 
-            // 分配 PR
-            await github.issues.addAssignees({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: pullRequest.number,
-              assignees: [assignee]
-            });
-
-            console.log(`Assigned PR #${pullRequest.number} to ${assignee}`);
-
-            // 检查是否有冲突
-            const { data: prData } = await github.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pullRequest.number
-            });
-
-            return {
-              prNumber: pullRequest.number,
-              mergeable: prData.mergeable
-            };
-      
-
-      # - name: Rebase release_to_develop onto develop
-      #   id: rebase
-      #   run: |
-      #     git checkout $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
-      #     git fetch origin
-      #     git rebase origin/main
-
-      # - name: Push changes to develop
-      #   run: |
-      #     git config pull.rebase true
-      #     git config advice.mergeConflict false
-      #     git fetch origin
-      #     git checkout main
-      #     git pull origin main
-      #     git checkout $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
-      #     # git rebase main
-      #     git checkout main
-      #     git merge $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop --allow-unrelated-histories
-      #     git push origin main
-
-      # - name: Send Slack notification
-      #   if: always()
-      #   uses: rtCamp/action-slack-notify@v2
-      #   env:
-      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      #   with:
-      #     text: |
-      #       ${{ github.event.repository.name }}: Release branch ${{ github.ref }} has been merged to develop branch.
-      #     color: ${{ steps.merge.outcome == 'success' ? 'good' : 'danger' }}
-      #     fields: |
-      #       - Field 1: Value 1
-      #       - Field 2: Value 2
