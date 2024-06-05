@@ -33,9 +33,9 @@ jobs:
         run: |
           git fetch origin ${{ env.TARGET_BRANCH }}
           if git diff --quiet origin/${{ env.TARGET_BRANCH }}..${{ steps.extract-names.outputs.release_branch }}; then
-            echo "{has_changes}={false}" >> $GITHUB_OUTPUT
+            echo "has_changes=false" >> $GITHUB_OUTPUT
           else
-            echo "{has_changes}={true}" >> $GITHUB_OUTPUT
+            echo "has_changes=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Create new branch
