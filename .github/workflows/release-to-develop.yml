@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - release_*
-    types: [closed]
 
 jobs:
   create-and-merge-branch:
