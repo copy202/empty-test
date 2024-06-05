@@ -8,7 +8,7 @@ on:
 jobs:
   create-and-merge-branch:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.merged == true
+    # if: github.event.pull_request.merged == true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -54,11 +54,11 @@ jobs:
           body: 'This is an automated pull request created by GitHub Actions.'
           assignees: copy202
 
-      - name: Check for merge conflicts
-        if: steps.check-diff.outputs.has_changes == 'true'
-        run: |
-          pr_number=$(jq --raw-output '.number' < $GITHUB_WORKSPACE/pull-request.json)
-          conflict_status=$(gh pr view $pr_number --json mergeStateStatus --jq '.mergeStateStatus')
-          echo "::set-output name=conflict_status::$conflict_status"
+      # - name: Check for merge conflicts
+      #   if: steps.check-diff.outputs.has_changes == 'true'
+      #   run: |
+      #     pr_number=$(jq --raw-output '.number' < $GITHUB_WORKSPACE/pull-request.json)
+      #     conflict_status=$(gh pr view $pr_number --json mergeStateStatus --jq '.mergeStateStatus')
+      #     echo "::set-output name=conflict_status::$conflict_status"
 
 
