@@ -1,10 +1,13 @@
-name: Auto Merge Release to Main
+name: Auto Merge Release to Trunk
 
 on:
   pull_request:
     types: [closed]
     branches:
       - release_*
+
+env:
+  TARGET_BRANCH: main
           
 jobs:
   create-and-merge-branch:
@@ -21,27 +24,27 @@ jobs:
       - name: Extract branch names
         id: extract-names
         run: |
-          echo "::set-output name=release_branch::$(echo '${{ github.ref }}' | sed 's/refs\/heads\///')"
-          echo "::set-output name=hr_branch::$(echo '${{ github.event.pull_request.head.ref }}')"
+          echo "release_branch=$(echo '${{ github.ref }}' | sed 's/refs\/heads\///')" >> $GITHUB_OUTPUT
+          echo "hr_branch=$(echo '${{ github.event.pull_request.head.ref }}')" >> $GITHUB_OUTPUT
+          echo "new_branch=$(echo '${{ github.ref }}' | sed 's/refs\/heads\///')_to_${{ env.TARGET_BRANCH }}" >> $GITHUB_OUTPUT
 
-      - name: Check for changes from new branch to main
+      - name: Check for changes from new branch to ${{ env.TARGET_BRANCH }}
         id: check-diff
         run: |
-          git fetch origin main
-          if git diff --quiet origin/main..${{ steps.extract-names.outputs.release_branch }}; then
-            echo "::set-output name=has_changes::false"
+          git fetch origin ${{ env.TARGET_BRANCH }}
+          if git diff --quiet origin/${{ env.TARGET_BRANCH }}..${{ steps.extract-names.outputs.release_branch }}; then
+            echo "{has_changes}={false}" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=has_changes::true"
+            echo "{has_changes}={true}" >> $GITHUB_OUTPUT
           fi
 
       - name: Create new branch
         if: steps.check-diff.outputs.has_changes == 'true'
         id: create-branch
         run: |
-          new_branch="${{ steps.extract-names.outputs.release_branch }}_to_develop"
           git fetch origin ${{ steps.extract-names.outputs.release_branch }}
-          git checkout -B $new_branch origin/${{ steps.extract-names.outputs.release_branch }}
-          git push --force origin $new_branch
+          git checkout -B ${{ steps.extract-names.outputs.new_branch }} origin/${{ steps.extract-names.outputs.release_branch }}
+          git push --force origin ${{ steps.extract-names.outputs.new_branch }}
 
       - name: Authenticate GitHub CLI
         run: gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
@@ -49,5 +52,5 @@ jobs:
       - name: Create Pull Request
         id: create-pr
         run: |
-          pr_url=$(gh pr create --title "Merge ${{ steps.extract-names.outputs.release_branch }} to main" --body "This is an automated pull request created by GitHub Actions." --base main --head ${{ steps.extract-names.outputs.release_branch }}_to_develop --assignee copy202 )
+          pr_url=$(gh pr create --title "Merge ${{ steps.extract-names.outputs.release_branch }} to ${{ env.TARGET_BRANCH }}" --body "This is an automated pull request created by GitHub Actions." --base ${{ env.TARGET_BRANCH }} --head ${{ steps.extract-names.outputs.new_branch }} --assignee copy202 )
           echo "pr_url=${pr_url}" >> $GITHUB_ENV
