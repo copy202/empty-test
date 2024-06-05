@@ -30,6 +30,53 @@ jobs:
           git checkout -b $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
           git push -u origin $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
 
+      - name: Create Pull Request
+        id: create_pr
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { context, github } = require('@actions/github');
+            const sourceBranch = '$(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop';
+            const targetBranch = 'main';
+            const prTitle = 'PR from $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop to main';
+            const prBody = 'This is an automated PR created by GitHub Actions';
+            const assignee = 'copy202'; // GitHub 用户名
+
+            // 创建 PR
+            const { data: pullRequest } = await github.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: sourceBranch,
+              base: targetBranch,
+              title: prTitle,
+              body: prBody
+            });
+
+            console.log(`Created PR #${pullRequest.number}`);
+
+            // 分配 PR
+            await github.issues.addAssignees({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pullRequest.number,
+              assignees: [assignee]
+            });
+
+            console.log(`Assigned PR #${pullRequest.number} to ${assignee}`);
+
+            // 检查是否有冲突
+            const { data: prData } = await github.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pullRequest.number
+            });
+
+            return {
+              prNumber: pullRequest.number,
+              mergeable: prData.mergeable
+            };
+      
+
       # - name: Rebase release_to_develop onto develop
       #   id: rebase
       #   run: |
@@ -37,18 +84,18 @@ jobs:
       #     git fetch origin
       #     git rebase origin/main
 
-      - name: Push changes to develop
-        run: |
-          git config pull.rebase true
-          git config advice.mergeConflict false
-          git fetch origin
-          git checkout main
-          git pull origin main
-          git checkout $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
-          # git rebase main
-          git checkout main
-          git merge $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop --allow-unrelated-histories
-          git push origin main
+      # - name: Push changes to develop
+      #   run: |
+      #     git config pull.rebase true
+      #     git config advice.mergeConflict false
+      #     git fetch origin
+      #     git checkout main
+      #     git pull origin main
+      #     git checkout $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop
+      #     # git rebase main
+      #     git checkout main
+      #     git merge $(echo ${GITHUB_REF} | cut -d'/' -f3)_to_develop --allow-unrelated-histories
+      #     git push origin main
 
       # - name: Send Slack notification
       #   if: always()
