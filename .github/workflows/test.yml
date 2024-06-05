@@ -15,13 +15,20 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0
+          sudo apt-add-repository https://cli.github.com/packages
+          sudo apt update
+          sudo apt install gh -y
+
+      - name: Authenticate GitHub CLI
+        run: gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
+
+
       - name: Create Pull Request
         id: create-pr
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: test-001
-          base: main
-          title: 'Merge release_0.0.16_to_develop to main'
-          body: 'This is an automated pull request created by GitHub Actions.'
-          assignees: copy202
+        run: |
+          pr_url=$(gh pr create --title "Merge test-001 to main" --body "This is an automated pull request created by GitHub Actions." --base main --head test-001 --assign copy202 --json url -q ".url")
+          echo "pr_url=${pr_url}" >> $GITHUB_ENV
+
