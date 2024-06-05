@@ -1,11 +1,11 @@
 name: Auto Merge Release to Main
 
 on:
-  push:
+  pull_request:
+    types: [closed]
     branches:
       - release_*
-    types: [closed]
-
+          
 jobs:
   create-and-merge-branch:
     runs-on: ubuntu-latest
