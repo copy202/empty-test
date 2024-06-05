@@ -4,11 +4,11 @@ on:
   push:
     branches:
       - release_*
+    types: [closed]
 
 jobs:
   create-and-merge-branch:
     runs-on: ubuntu-latest
-    # if: github.event.pull_request.merged == true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -24,7 +24,18 @@ jobs:
           echo "::set-output name=release_branch::$(echo '${{ github.ref }}' | sed 's/refs\/heads\///')"
           echo "::set-output name=hr_branch::$(echo '${{ github.event.pull_request.head.ref }}')"
 
+      - name: Check for changes from new branch to main
+        id: check-diff
+        run: |
+          git fetch origin main
+          if git diff --quiet origin/main..${{ steps.extract-names.outputs.release_branch }}; then
+            echo "::set-output name=has_changes::false"
+          else
+            echo "::set-output name=has_changes::true"
+          fi
+
       - name: Create new branch
+        if: steps.check-diff.outputs.has_changes == 'true'
         id: create-branch
         run: |
           new_branch="${{ steps.extract-names.outputs.release_branch }}_to_develop"
@@ -32,33 +43,11 @@ jobs:
           git checkout -B $new_branch origin/${{ steps.extract-names.outputs.release_branch }}
           git push --force origin $new_branch
 
-      - name: Check for changes from new branch to main
-        id: check-diff
-        run: |
-          git fetch origin main
-          if git diff --quiet origin/main..${{ steps.create-branch.outputs.new_branch }}; then
-            echo "::set-output name=has_changes::false"
-          else
-            echo "::set-output name=has_changes::true"
-          fi
+      - name: Authenticate GitHub CLI
+        run: gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
 
       - name: Create Pull Request
-        if: steps.check-diff.outputs.has_changes == 'true'
         id: create-pr
-        uses: peter-evans/create-pull-request@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          head: ${{ steps.create-branch.outputs.new_branch }}
-          base: main
-          title: 'Merge ${{ steps.create-branch.outputs.new_branch }} to main'
-          body: 'This is an automated pull request created by GitHub Actions.'
-          assignees: copy202
-
-      # - name: Check for merge conflicts
-      #   if: steps.check-diff.outputs.has_changes == 'true'
-      #   run: |
-      #     pr_number=$(jq --raw-output '.number' < $GITHUB_WORKSPACE/pull-request.json)
-      #     conflict_status=$(gh pr view $pr_number --json mergeStateStatus --jq '.mergeStateStatus')
-      #     echo "::set-output name=conflict_status::$conflict_status"
-
-
+        run: |
+          pr_url=$(gh pr create --title "Merge ${{ steps.extract-names.outputs.release_branch }} to main" --body "This is an automated pull request created by GitHub Actions." --base main --head ${{ steps.extract-names.outputs.new_branch }} --assignee copy202 )
+          echo "pr_url=${pr_url}" >> $GITHUB_ENV
