@@ -1,0 +1,27 @@
+name: test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-and-merge-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create Pull Request
+        id: create-pr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: release_0.0.16_to_develop
+          base: main
+          title: 'Merge release_0.0.16_to_develop to main'
+          body: 'This is an automated pull request created by GitHub Actions.'
+          assignees: copy202
